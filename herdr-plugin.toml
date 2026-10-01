@@ -22,7 +22,7 @@ id = "herdr-space-scoped-agents"
 name = "Space-Scoped Agents"
 version = "0.6.0" # x-release-please-version
 min_herdr_version = "0.7.5"
-description = "Scope the agent panel to the space you're focused on."
+description = "Scope the agent panel to the focused space or machine."
 platforms = ["linux", "macos", "windows"]
 
 # --- Install-time build ------------------------------------------------------
@@ -34,6 +34,16 @@ command = ["/bin/sh", "scripts/fetch-or-build.sh"]
 [[build]]
 platforms = ["windows"]
 command = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/fetch-or-build.ps1"]
+
+# --- Startup: re-apply the persisted mode as soon as the server is up ---------
+
+[[startup]]
+platforms = ["linux", "macos"]
+command = ["/bin/sh", "-c", 'exec "$HERDR_PLUGIN_ROOT/bin/herdr-space-scoped-agents" sync']
+
+[[startup]]
+platforms = ["windows"]
+command = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", '''$p=$env:HERDR_PLUGIN_ROOT; if($p -and $p.StartsWith('\\?\')){$p=$p.Substring(4)}; & (Join-Path $p 'bin\herdr-space-scoped-agents.exe') sync''']
 
 # --- Automatic behaviour: re-assert the active mode on every space switch -----
 # Runs "sync", which applies the persisted mode ("current" scopes to the focused
@@ -50,8 +60,31 @@ on = "workspace.focused"
 platforms = ["windows"]
 command = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", '''$p=$env:HERDR_PLUGIN_ROOT; if($p -and $p.StartsWith('\\?\')){$p=$p.Substring(4)}; & (Join-Path $p 'bin\herdr-space-scoped-agents.exe') sync''']
 
+# Machine mode filters on this server's workspace ids; refresh when they change.
+[[events]]
+on = "workspace.created"
+platforms = ["linux", "macos"]
+command = ["/bin/sh", "-c", 'exec "$HERDR_PLUGIN_ROOT/bin/herdr-space-scoped-agents" sync']
+
+[[events]]
+on = "workspace.created"
+platforms = ["windows"]
+command = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", '''$p=$env:HERDR_PLUGIN_ROOT; if($p -and $p.StartsWith('\\?\')){$p=$p.Substring(4)}; & (Join-Path $p 'bin\herdr-space-scoped-agents.exe') sync''']
+
+# Machine mode filters on this server's workspace ids; refresh when they change.
+[[events]]
+on = "workspace.closed"
+platforms = ["linux", "macos"]
+command = ["/bin/sh", "-c", 'exec "$HERDR_PLUGIN_ROOT/bin/herdr-space-scoped-agents" sync']
+
+[[events]]
+on = "workspace.closed"
+platforms = ["windows"]
+command = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", '''$p=$env:HERDR_PLUGIN_ROOT; if($p -and $p.StartsWith('\\?\')){$p=$p.Substring(4)}; & (Join-Path $p 'bin\herdr-space-scoped-agents.exe') sync''']
+
 # --- Manual actions (bind to a key or `herdr plugin action invoke <id>`) ------
-# current -> scope to the focused space, all -> show every space, toggle -> flip.
+# current -> focused space, machine -> focused machine, all -> everything,
+# toggle -> cycle all -> current -> machine -> all.
 # Each persists the mode so it sticks across space switches and restarts.
 
 [[actions]]
@@ -61,6 +94,14 @@ title = "Space scope: only current space"
 description = "Scope the agent panel to the focused space (persists)"
 contexts = ["global"]
 command = ["/bin/sh", "-c", 'exec "$HERDR_PLUGIN_ROOT/bin/herdr-space-scoped-agents" current']
+
+[[actions]]
+id = "machine"
+platforms = ["linux", "macos"]
+title = "Space scope: only current machine"
+description = "Scope the agent panel to the focused machine (persists)"
+contexts = ["global"]
+command = ["/bin/sh", "-c", 'exec "$HERDR_PLUGIN_ROOT/bin/herdr-space-scoped-agents" machine']
 
 [[actions]]
 id = "all"
@@ -73,8 +114,8 @@ command = ["/bin/sh", "-c", 'exec "$HERDR_PLUGIN_ROOT/bin/herdr-space-scoped-age
 [[actions]]
 id = "toggle"
 platforms = ["linux", "macos"]
-title = "Space scope: toggle current/all"
-description = "Flip between current-space-only and all-spaces (persists)"
+title = "Space scope: cycle all/space/machine"
+description = "Cycle all -> current space -> current machine (persists)"
 contexts = ["global"]
 command = ["/bin/sh", "-c", 'exec "$HERDR_PLUGIN_ROOT/bin/herdr-space-scoped-agents" toggle']
 
@@ -87,6 +128,14 @@ contexts = ["global"]
 command = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", '''$p=$env:HERDR_PLUGIN_ROOT; if($p -and $p.StartsWith('\\?\')){$p=$p.Substring(4)}; & (Join-Path $p 'bin\herdr-space-scoped-agents.exe') current''']
 
 [[actions]]
+id = "machine-windows"
+platforms = ["windows"]
+title = "Space scope: only current machine"
+description = "Scope the agent panel to the focused machine (persists)"
+contexts = ["global"]
+command = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", '''$p=$env:HERDR_PLUGIN_ROOT; if($p -and $p.StartsWith('\\?\')){$p=$p.Substring(4)}; & (Join-Path $p 'bin\herdr-space-scoped-agents.exe') machine''']
+
+[[actions]]
 id = "all-windows"
 platforms = ["windows"]
 title = "Space scope: show all agents"
@@ -97,7 +146,7 @@ command = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
 [[actions]]
 id = "toggle-windows"
 platforms = ["windows"]
-title = "Space scope: toggle current/all"
-description = "Flip between current-space-only and all-spaces (persists)"
+title = "Space scope: cycle all/space/machine"
+description = "Cycle all -> current space -> current machine (persists)"
 contexts = ["global"]
 command = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", '''$p=$env:HERDR_PLUGIN_ROOT; if($p -and $p.StartsWith('\\?\')){$p=$p.Substring(4)}; & (Join-Path $p 'bin\herdr-space-scoped-agents.exe') toggle''']

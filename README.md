@@ -50,7 +50,21 @@ The plugin has two modes, and your choice **persists** (stored in the plugin
 state dir, so it survives space switches and restarts):
 
 - **`current`** (default) — scope the panel to the focused space.
+- **`machine`** — scope the panel to the focused machine (see below).
 - **`all`** — show agents from every space.
+
+#### Machine mode
+
+With [saved SSH machines](https://herdr.dev/docs/connecting-machines/), the
+client applies the **selected machine's** agent view to every machine's agents,
+and workspace ids are compared per machine. Machine mode sets
+`{"op":"in","field":"workspace_id","values":[<this server's workspace ids>]}`,
+which therefore matches only the selected machine's agents. The id list is
+refreshed on `workspace.created` / `workspace.closed`.
+
+Install the plugin on **every** machine: the filter in effect is whichever one
+the selected machine's server holds, and a machine without the plugin shows
+everything.
 
 The `workspace.focused` hook runs `sync`, which re-asserts whichever mode is
 active. That's what makes **`all` stick** — switching spaces won't silently snap
@@ -116,7 +130,8 @@ sets the persisted mode (above), so the choice sticks:
 | --- | --- |
 | `current` | Scope to the focused space |
 | `all`     | Show agents from every space |
-| `toggle`  | Flip between `current` and `all` |
+| `machine` | Scope to the focused machine |
+| `toggle`  | Cycle `all` → `current` → `machine` → `all` |
 
 Bind them in herdr's `config.toml` (keybindings live in user config, not the
 plugin manifest; the value is `<plugin_id>.<action_id>`):
@@ -170,15 +185,12 @@ plugin's verified findings):
 
 ## Limitations
 
-- **Re-asserts on first focus after a restart, not at boot.** herdr has no
-  "server started" plugin hook, so after a restart the active mode is re-applied
-  the first time you focus a space. Run an action for an immediate apply.
 - **The view is transient; the mode is not.** The agent view itself lives in the
   running server (not `config.toml`), so the hook re-asserts it — but your chosen
   mode (`current`/`all`) is persisted in the plugin state dir and survives
   restarts.
-- **Scopes by space only.** It filters on `workspace_id` — not by agent kind,
-  status, or tab.
+- **Scopes by space or machine only.** It filters on `workspace_id` — not by
+  agent kind, status, or tab.
 
 ## Build from source
 
