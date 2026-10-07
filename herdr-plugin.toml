@@ -1,9 +1,9 @@
 # herdr-plugin.toml — manifest for herdr-space-scoped-agents.
 #
-# Scopes the agent panel to the focused space (mode "current") or shows every
-# space (mode "all") by driving Herdr's transient agent view over the API
-# socket. The chosen mode is persisted in the plugin state dir; the
-# workspace.focused hook runs "sync" to (re)assert it on every space switch.
+# Scopes the agent panel to the focused space (mode "current"), the focused
+# machine (mode "machine"), or shows every space (mode "all") by driving Herdr's
+# transient agent view over the API socket. The chosen mode is persisted in the
+# plugin state dir; the startup and workspace hooks run "sync" to (re)assert it.
 #
 # Distribution: [[build]] runs at `herdr plugin install` time. The per-platform
 # fetch-or-build script downloads the prebuilt binary matching this version and
@@ -47,8 +47,9 @@ command = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
 
 # --- Automatic behaviour: re-assert the active mode on every space switch -----
 # Runs "sync", which applies the persisted mode ("current" scopes to the focused
-# space; "all" leaves every space visible). This is what makes the "all" choice
-# stick instead of being overwritten on the next focus change.
+# space, "machine" to the focused machine, "all" leaves everything visible).
+# This is what makes the chosen mode stick instead of being overwritten on the
+# next focus change.
 
 [[events]]
 on = "workspace.focused"

@@ -46,7 +46,7 @@ switch, which additionally restores it after a restart on your first focus.
 
 ### Modes
 
-The plugin has two modes, and your choice **persists** (stored in the plugin
+The plugin has three modes, and your choice **persists** (stored in the plugin
 state dir, so it survives space switches and restarts):
 
 - **`current`** (default) — scope the panel to the focused space.
@@ -76,20 +76,21 @@ There is **no config key** to edit (unlike a `ui.*` setting). You set the mode b
 running an action **once**, and it sticks. Two ways:
 
 1. **A keybinding** (recommended) — bind `toggle` to a key (see
-   [Actions](#actions)) and press it to flip `current` ↔ `all`.
+   [Actions](#actions)) and press it to cycle `all` → `current` → `machine`.
 2. **The terminal**:
    ```bash
-   herdr plugin action invoke current --plugin herdr-space-scoped-agents  # scope
+   herdr plugin action invoke current --plugin herdr-space-scoped-agents  # scope to space
+   herdr plugin action invoke machine --plugin herdr-space-scoped-agents  # scope to machine
    herdr plugin action invoke all     --plugin herdr-space-scoped-agents  # show all
-   herdr plugin action invoke toggle  --plugin herdr-space-scoped-agents  # flip
+   herdr plugin action invoke toggle  --plugin herdr-space-scoped-agents  # cycle
    ```
 
 Herdr's actions are also invokable however your Herdr version surfaces plugin
 actions; a keybinding is the most reliable trigger.
 
 To see which mode is active, look at the agent panel: only the focused space's
-agents (with the **Current space** header) means `current`; every space's agents
-means `all`.
+agents (with the **Current space** header) means `current`; the **Current
+machine** header means `machine`; every space's agents means `all`.
 
 The work is done by a small, dependency-free **Go binary** that speaks the API
 socket's newline-delimited JSON protocol — a unix socket on macOS/Linux, a
@@ -149,8 +150,8 @@ command = "herdr-space-scoped-agents.all"
 ```
 
 On **Windows**, bind the `-windows`-suffixed ids instead
-(`herdr-space-scoped-agents.current-windows` / `.all-windows` /
-`.toggle-windows`) — see [Windows](#windows).
+(`herdr-space-scoped-agents.current-windows` / `.machine-windows` /
+`.all-windows` / `.toggle-windows`) — see [Windows](#windows).
 
 ## Manage
 
@@ -173,7 +174,8 @@ plugin's verified findings):
 
 - **Action ids must be unique across platforms** — herdr rejects duplicate
   action ids regardless of platform gating. The Windows launchers use the ids
-  `current-windows`, `all-windows`, and `toggle-windows`; bind those.
+  `current-windows`, `machine-windows`, `all-windows`, and `toggle-windows`;
+  bind those.
 - **Launch by absolute path** — herdr can't reliably spawn a relative program on
   Windows, so every command invokes the binary through `$HERDR_PLUGIN_ROOT`
   (stripping the `\\?\` verbatim prefix herdr may report).
@@ -187,7 +189,7 @@ plugin's verified findings):
 
 - **The view is transient; the mode is not.** The agent view itself lives in the
   running server (not `config.toml`), so the hook re-asserts it — but your chosen
-  mode (`current`/`all`) is persisted in the plugin state dir and survives
+  mode (`current`/`machine`/`all`) is persisted in the plugin state dir and survives
   restarts.
 - **Scopes by space or machine only.** It filters on `workspace_id` — not by
   agent kind, status, or tab.
