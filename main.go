@@ -161,11 +161,22 @@ func call(method string, params any) (map[string]any, error) {
 	return resp, nil
 }
 
+// viewSort keeps each space together and, within it, orders panes by the
+// aq_sort token that herdr-agent-quota publishes (tightest quota first).
+// Herdr holds a single agent view, so this plugin owns it and carries the
+// sort; herdr-agent-quota does not set a view while this plugin is enabled.
+// Panes without the token simply tie.
+var viewSort = []any{
+	map[string]any{"field": "workspace_order", "order": "asc"},
+	map[string]any{"field": map[string]any{"token": "aq_sort"}, "order": "asc"},
+}
+
 // applyView filters the agent panel to the focused space.
 func applyView() (map[string]any, error) {
 	return call("agent.view.set", map[string]any{
 		"source": source,
 		"label":  "Current space",
+		"sort":   viewSort,
 		"filter": map[string]any{
 			"op":    "eq",
 			"field": "workspace_id",
@@ -186,6 +197,7 @@ func applyMachineView() (map[string]any, error) {
 	return call("agent.view.set", map[string]any{
 		"source": source,
 		"label":  "Current machine",
+		"sort":   viewSort,
 		"filter": map[string]any{"op": "in", "field": "workspace_id", "values": ids},
 	})
 }
@@ -206,6 +218,15 @@ func workspaceIDs(resp map[string]any) []string {
 	return ids
 }
 
+// applyAllView shows agents from every space, still sorted.
+func applyAllView() (map[string]any, error) {
+	return call("agent.view.set", map[string]any{
+		"source": source,
+		"label":  "All spaces",
+		"sort":   viewSort,
+	})
+}
+
 // clearView removes this plugin's view, showing agents from every space.
 func clearView() (map[string]any, error) {
 	return call("agent.view.clear", map[string]any{"source": source})
@@ -215,7 +236,7 @@ func clearView() (map[string]any, error) {
 func applyMode(mode string) (map[string]any, error) {
 	switch mode {
 	case modeAll:
-		return clearView()
+		return applyAllView()
 	case modeMachine:
 		return applyMachineView()
 	}
@@ -243,7 +264,10 @@ func main() {
 	case "machine":
 		writeMode(modeMachine)
 		resp, err = applyMachineView()
-	case "all", "clear", "disable":
+	case "all":
+		writeMode(modeAll)
+		resp, err = applyAllView()
+	case "clear", "disable":
 		writeMode(modeAll)
 		resp, err = clearView()
 	case "cycle", "toggle":
