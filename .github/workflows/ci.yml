@@ -2,19 +2,25 @@ name: ci
 
 on:
   push:
-    branches: [main]
+    branches: [main, deploy]
   pull_request:
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "stable"
       - run: go vet ./...
       - run: go build ./...
+      - run: go test ./...
       - name: Cross-compile check (all targets)
         run: |
           set -euo pipefail
@@ -23,3 +29,71 @@ jobs:
             echo "== $os/$arch =="
             GOOS="$os" GOARCH="$arch" CGO_ENABLED=0 go build -o /dev/null .
           done
+
+  # Runs the install-time build step on each platform the way `herdr plugin
+  # install` does (HERDR_PLUGIN_ROOT set; on Windows with the \\?\ prefix Herdr
+  # may add). build.sh runs on Linux and macOS, build.ps1 on Windows. Checks the
+  # binary reports the manifest's version plus the commit, and that a missing
+  # Go fails cleanly.
+  install-script:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "stable"
+      - name: scripts pin GOTOOLCHAIN=local themselves
+        shell: bash
+        # setup-go already exports GOTOOLCHAIN=local, so a build passing here
+        # can't prove the scripts set it; check the scripts directly.
+        run: |
+          grep -q 'GOTOOLCHAIN=local go build' scripts/build.sh
+          grep -q "\$env:GOTOOLCHAIN = 'local'" scripts/build.ps1
+      - name: build.sh (linux, macos)
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          HERDR_PLUGIN_ROOT: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          # Without Go on PATH the script must fail with a clear message. Some
+          # runner images ship go in /usr/bin, so give the script a PATH holding
+          # only the tools it needs before the Go check.
+          nogo="$RUNNER_TEMP/nogo"; mkdir -p "$nogo"
+          for t in sed head dirname; do ln -sf "$(command -v "$t")" "$nogo/$t"; done
+          if PATH="$nogo" /bin/sh scripts/build.sh 2>err.txt; then
+            echo "build.sh succeeded without Go" >&2; exit 1
+          fi
+          grep -q 'Go is required' err.txt
+          [ ! -e bin/herdr-space-scoped-agents ]
+          sh scripts/build.sh
+          want="$(sed -n 's/^version *= *"\([^"]*\)".*/\1/p' herdr-plugin.toml | head -n1)"
+          want="$want+$(git rev-parse --short HEAD)"
+          got="$(bin/herdr-space-scoped-agents version)"
+          [ "$got" = "$want" ] || { echo "binary reports $got, expected $want" >&2; exit 1; }
+      - name: build.ps1 (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:HERDR_PLUGIN_ROOT = '\\?\' + $PWD.Path
+          # Without Go on PATH the script must fail with a clear message.
+          $saved = $env:PATH
+          $env:PATH = ($env:PATH -split ';' | Where-Object { $_ -and -not (Test-Path (Join-Path $_ 'go.exe')) }) -join ';'
+          $out = powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build.ps1 2>&1 | Out-String
+          $code = $LASTEXITCODE
+          $env:PATH = $saved
+          if ($code -eq 0) { Write-Error "build.ps1 succeeded without Go"; exit 1 }
+          if ($out -notmatch 'Go is required') { Write-Error "missing-Go message not found in: $out"; exit 1 }
+          if (Test-Path bin/herdr-space-scoped-agents.exe) { Write-Error "binary built without Go"; exit 1 }
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $want = (Select-String -Path herdr-plugin.toml -Pattern '^version\s*=\s*"([^"]*)"').Matches[0].Groups[1].Value
+          $want = "$want+$((& git rev-parse --short HEAD).Trim())"
+          $got = (& bin/herdr-space-scoped-agents.exe version).Trim()
+          if ($got -ne $want) { Write-Error "binary reports $got, expected $want"; exit 1 }

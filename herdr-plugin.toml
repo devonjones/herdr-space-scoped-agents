@@ -6,9 +6,8 @@
 # plugin state dir; the startup and workspace hooks run "sync" to (re)assert it.
 #
 # Distribution: [[build]] runs at `herdr plugin install` time. The per-platform
-# fetch-or-build script downloads the prebuilt binary matching this version and
-# platform from GitHub Releases and verifies its SHA-256; on any miss it falls
-# back to `go build` (so a Go toolchain is only needed when no prebuilt exists).
+# build script compiles the binary from source with `go build`; nothing is
+# downloaded from a GitHub release (see specs/006-build-from-source.md).
 #
 # Windows notes (following the herdr-file-viewer plugin's verified findings):
 #  - Actions need a UNIQUE id even across platforms — Herdr rejects duplicate
@@ -29,11 +28,11 @@ platforms = ["linux", "macos", "windows"]
 
 [[build]]
 platforms = ["linux", "macos"]
-command = ["/bin/sh", "scripts/fetch-or-build.sh"]
+command = ["/bin/sh", "scripts/build.sh"]
 
 [[build]]
 platforms = ["windows"]
-command = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/fetch-or-build.ps1"]
+command = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/build.ps1"]
 
 # --- Startup: re-apply the persisted mode as soon as the server is up ---------
 

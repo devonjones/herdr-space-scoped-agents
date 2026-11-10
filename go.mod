@@ -1,4 +1,4 @@
-module github.com/ShankyJS/herdr-space-scoped-agents
+module herdr-space-scoped-agents
 
 go 1.26
 

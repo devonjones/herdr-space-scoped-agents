@@ -1,5 +1,8 @@
 # 003 — Distribution: fetch-or-build
 
+> **Superseded by [006](006-build-from-source.md).** Installs now build from
+> source only; this doc is kept as the record of the original decision.
+
 ## Context
 
 `herdr plugin install <owner>/<repo>` clones the repo and runs the manifest's

@@ -14,40 +14,8 @@ jobs:
     steps:
       # Maintains a release PR from conventional commits; on merge it bumps the
       # version (CHANGELOG.md + herdr-plugin.toml), tags, and creates the
-      # GitHub release. Config: release-please-config.json + manifest.
-      - uses: googleapis/release-please-action@v5
+      # GitHub release. No binaries are attached: installs build from source
+      # (specs/006-build-from-source.md).
+      # Config: release-please-config.json + manifest.
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         id: release
-
-      # Everything below runs only when release-please actually cut a release.
-      # release-please creates the (published, tagged) release itself; we then
-      # build every target and attach the binaries to it. The build step's CI
-      # counterpart (ci.yml) cross-compiles all targets on the release PR, so a
-      # broken build is caught before merge rather than after publishing.
-      - uses: actions/checkout@v7
-        if: ${{ steps.release.outputs.release_created }}
-
-      - uses: actions/setup-go@v7
-        if: ${{ steps.release.outputs.release_created }}
-        with:
-          go-version: "stable"
-
-      - name: Build and attach release binaries
-        if: ${{ steps.release.outputs.release_created }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.release.outputs.tag_name }}
-        run: |
-          set -euo pipefail
-          version="${TAG#v}"
-          bin="herdr-space-scoped-agents"
-          mkdir -p dist
-          for target in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 windows/amd64 windows/arm64; do
-            os="${target%/*}"; arch="${target#*/}"
-            ext=""; [ "$os" = "windows" ] && ext=".exe"
-            out="dist/${bin}-${os}-${arch}${ext}"
-            echo "building $out"
-            GOOS="$os" GOARCH="$arch" CGO_ENABLED=0 \
-              go build -trimpath -ldflags "-s -w -X main.version=${version}" -o "$out" .
-            ( cd dist && sha256sum "$(basename "$out")" > "$(basename "$out").sha256" )
-          done
-          gh release upload "$TAG" dist/* --clobber

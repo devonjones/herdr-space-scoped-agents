@@ -8,9 +8,10 @@ changes are made with the original reasoning in view.
 | --- | --- | --- |
 | 001 | [agent-view-filtering.md](001-agent-view-filtering.md) | How the panel is scoped: the transient `agent.view.*` API and the focus hook |
 | 002 | [why-go-binary.md](002-why-go-binary.md) | Why a Go binary rather than a script or Rust |
-| 003 | [distribution.md](003-distribution.md) | Fetch-or-build install: prebuilt download + checksum, source fallback |
+| 003 | [distribution.md](003-distribution.md) | Fetch-or-build install (superseded by 006) |
 | 004 | [windows-support.md](004-windows-support.md) | Named-pipe transport and Windows launch quirks |
-| 005 | [release-automation.md](005-release-automation.md) | release-please and the draft → build → publish flow |
+| 005 | [release-automation.md](005-release-automation.md) | release-please flow (binary uploads removed by 006) |
+| 006 | [build-from-source.md](006-build-from-source.md) | Install builds from source only; no prebuilt downloads |
 
 Format: each doc states the **context**, the **decision**, and the
 **rationale / alternatives** considered.
